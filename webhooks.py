@@ -1,12 +1,11 @@
 import base64
 import hashlib
 import hmac
-import os
 import re
 
 from auth import authenticate
 from constants import *
-from flask import Flask, abort, request, json
+from flask import Flask, abort, request, json, send_file
 from webhooks_data import EMAIL_PATTERN, SCAMMY_PATTERN
 
 
@@ -47,19 +46,19 @@ def report(user_ids):
     """Send reports and record the number of users reported"""
     for user_id in user_ids:
         api.report_spam(user_id=user_id)
-        print("Reported: ", user_id)
+        print("Reported ID:", user_id)
 
     if os.path.exists(REPORTED_FILE_PATH):
         with open(REPORTED_FILE_PATH, "r") as reported_file:
-            reported = json.load(reported_file)
+            reported = int(reported_file.read().strip())
     else:
-        reported = {"count": 0}
+        reported = 0
 
-    reported["count"] += len(user_ids)
-    print(reported)
+    reported += len(user_ids)
+    print("Total # reported:", reported)
 
     with open(REPORTED_FILE_PATH, "w+") as reported_file:
-        json.dump(reported, reported_file)
+        reported_file.write(str(reported))
 
 
 def handle_events(events):
@@ -75,7 +74,8 @@ def handle_events(events):
             # Reply to the bot, quote tweet of the bot
             if is_probably_spam(event):
                 to_report.append(event["user"]["id"])
-    report(to_report)
+    if len(to_report) > 0:
+        report(to_report)
 
 
 @app.route("/", methods=["GET"])
@@ -103,3 +103,8 @@ def handle_webhook():
     if "tweet_create_events" in body:
         handle_events(body["tweet_create_events"])
     return "", 204
+
+
+@app.route("/stats", methods=["GET"])
+def show_stats():
+    return send_file(REPORTED_FILE_PATH)

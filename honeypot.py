@@ -1,11 +1,7 @@
 import random
 import re
 
-from auth import authenticate
 from honeypot_data import *
-from stats import write_and_send_stats_tweet
-
-api = authenticate()
 
 
 def hydrate_template(template):
@@ -20,7 +16,7 @@ def random_punct():
     return random.choice([".", "!", "!!", "!!!", "..."])
 
 
-def write_tweet():
+def write_honeypot_tweet():
     tweet_template = ""
     if random.random() < 0.8:
         tweet_template += random.choice(PREFIX) + " "
@@ -30,15 +26,3 @@ def write_tweet():
         if not tweet_template.endswith("?"):
             tweet_template += random_punct()
     return hydrate_template(tweet_template)
-
-
-def send_tweet(tweet_to_send):
-    api.update_status(tweet_to_send)
-
-
-if __name__ == "__main__":
-    tweet = write_tweet()
-    send_tweet(tweet)
-
-    # Send stats tweet if it's time to do so
-    write_and_send_stats_tweet()
