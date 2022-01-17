@@ -3,6 +3,7 @@ import re
 
 from auth import authenticate
 from honeypot_data import *
+from stats import write_and_send_stats_tweet
 
 api = authenticate()
 
@@ -38,3 +39,6 @@ def send_tweet(tweet_to_send):
 if __name__ == "__main__":
     tweet = write_tweet()
     send_tweet(tweet)
+
+    # Send stats tweet if it's time to do so
+    write_and_send_stats_tweet()

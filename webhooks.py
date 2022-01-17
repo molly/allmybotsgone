@@ -5,14 +5,9 @@ import os
 import re
 
 from auth import authenticate
+from constants import *
 from flask import Flask, abort, request, json
 from webhooks_data import EMAIL_PATTERN, SCAMMY_PATTERN
-
-__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-REPORTED_FILE_PATH = os.path.join(__location__, "reported.json")
-
-BOT_ID = 1482758757247553540
-ALLOWLISTED_USER_IDS = {BOT_ID, 545445165, 1477342011875381251}
 
 
 api = authenticate()
@@ -20,16 +15,10 @@ app = Flask(__name__)
 
 
 def is_valid_webhook(req):
-    print("REQ____")
-    print(req)
+    """Check the webhook signature to ensure this came from Twitter"""
     if req.headers.has_key("x-twitter-webhooks-signature"):
         signature = req.headers.get("x-twitter-webhooks-signature")
         request_body = req.get_data(as_text=True)
-        print("SIG____")
-        print(signature)
-        print("REQ_BODY____")
-        print(request_body)
-        # Check the signature to ensure this request came from Twitter
         sha256_hash_digest = hmac.new(
             bytes(os.environ.get("API_KEY_SECRET"), "utf-8"),
             msg=bytes(request_body, "utf-8"),
@@ -41,7 +30,7 @@ def is_valid_webhook(req):
 
 
 def is_probably_spam(tweet):
-    # Some additional checks so that people who interact with the bot in good faith won't all get reported.
+    """Some additional checks so that people who interact with the bot in good faith won't all get reported."""
     if len(tweet["entities"]["urls"]) > 0:
         # Contains a URL
         return True
@@ -55,9 +44,10 @@ def is_probably_spam(tweet):
 
 
 def report(user_ids):
+    """Send reports and record the number of users reported"""
     for user_id in user_ids:
-        # api.report_spam(user_id)
-        print(user_id)
+        api.report_spam(user_id=user_id)
+        print("Reported: ", user_id)
 
     if os.path.exists(REPORTED_FILE_PATH):
         with open(REPORTED_FILE_PATH, "r") as reported_file:
@@ -65,12 +55,15 @@ def report(user_ids):
     else:
         reported = {"count": 0}
 
+    reported["count"] += len(user_ids)
+    print(reported)
+
     with open(REPORTED_FILE_PATH, "w+") as reported_file:
-        reported["count"] += len(user_ids)
         json.dump(reported, reported_file)
 
 
 def handle_events(events):
+    """Handles tweets, retweets, replies, quote tweets, mentions"""
     to_report = []
     for event in events:
         if event["user"]["id"] in ALLOWLISTED_USER_IDS:
@@ -105,10 +98,8 @@ def webhook_challenge():
 @app.route("/", methods=["POST"])
 def handle_webhook():
     if not is_valid_webhook(request):
-        # Validate that this really came from Twitter before we start blocking people :)
         abort(403)
     body = request.json
     if "tweet_create_events" in body:
-        # Tweets, retweets, replies, quote tweets, mentions
         handle_events(body["tweet_create_events"])
     return "", 204
