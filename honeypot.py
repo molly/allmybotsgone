@@ -2,7 +2,7 @@ import random
 import re
 
 from auth import authenticate
-from data import *
+from honeypot_data import *
 
 api = authenticate()
 

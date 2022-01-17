@@ -2,21 +2,87 @@ import base64
 import hashlib
 import hmac
 import os
-from flask import Flask, request, json
+import re
+
+from auth import authenticate
+from flask import Flask, abort, request, json
+from webhooks_data import EMAIL_PATTERN, SCAMMY_PATTERN
+
+__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+REPORTED_FILE_PATH = os.path.join(__location__, "reported.json")
+
+BOT_ID = 1482758757247553540
+ALLOWLISTED_USER_IDS = {BOT_ID, 545445165, 1477342011875381251}
 
 
+api = authenticate()
 app = Flask(__name__)
 
 
-def is_valid(signature, request_body):
-    # Check the signature to ensure this request came from Twitter
-    sha256_hash_digest = hmac.new(
-        bytes(os.environ.get("API_KEY"), "utf-8"),
-        msg=bytes(request_body, "utf-8"),
-        digestmod=hashlib.sha256,
-    ).digest()
-    hash_val = "sha256=" + base64.b64encode(sha256_hash_digest).decode("utf-8")
-    return hmac.compare_digest(signature, hash_val)
+def is_valid_webhook(req):
+    print("REQ____")
+    print(req)
+    if req.headers.has_key("x-twitter-webhooks-signature"):
+        signature = req.headers.get("x-twitter-webhooks-signature")
+        request_body = req.get_data(as_text=True)
+        print("SIG____")
+        print(signature)
+        print("REQ_BODY____")
+        print(request_body)
+        # Check the signature to ensure this request came from Twitter
+        sha256_hash_digest = hmac.new(
+            bytes(os.environ.get("API_KEY_SECRET"), "utf-8"),
+            msg=bytes(request_body, "utf-8"),
+            digestmod=hashlib.sha256,
+        ).digest()
+        hash_val = "sha256=" + base64.b64encode(sha256_hash_digest).decode("utf-8")
+        return hmac.compare_digest(signature, hash_val)
+    return False
+
+
+def is_probably_spam(tweet):
+    # Some additional checks so that people who interact with the bot in good faith won't all get reported.
+    if len(tweet["entities"]["urls"]) > 0:
+        # Contains a URL
+        return True
+    if re.search(EMAIL_PATTERN, tweet["text"]):
+        # Contains an email address; https://www.geeksforgeeks.org/check-if-email-address-valid-or-not-in-python/
+        return True
+    if re.search(SCAMMY_PATTERN, tweet["text"]):
+        # With the easy tells out of the way, check for some other common indicators
+        return True
+    return False
+
+
+def report(user_ids):
+    for user_id in user_ids:
+        # api.report_spam(user_id)
+        print(user_id)
+
+    if os.path.exists(REPORTED_FILE_PATH):
+        with open(REPORTED_FILE_PATH, "r") as reported_file:
+            reported = json.load(reported_file)
+    else:
+        reported = {"count": 0}
+
+    with open(REPORTED_FILE_PATH, "w+") as reported_file:
+        reported["count"] += len(user_ids)
+        json.dump(reported, reported_file)
+
+
+def handle_events(events):
+    to_report = []
+    for event in events:
+        if event["user"]["id"] in ALLOWLISTED_USER_IDS:
+            # Avoid reporting the bot itself, Molly, etc.
+            continue
+        if event["in_reply_to_user_id"] == BOT_ID or (
+            event["is_quote_status"] and event["quoted_status"]["user"]["id"] == BOT_ID
+        ):
+            # Reply to the bot, quote tweet of the bot
+            if is_probably_spam(event):
+                to_report.append(event["user"]["id"])
+    report(to_report)
 
 
 @app.route("/", methods=["GET"])
@@ -37,5 +103,12 @@ def webhook_challenge():
 
 
 @app.route("/", methods=["POST"])
-def handle_webook():
-    print("hi")
+def handle_webhook():
+    if not is_valid_webhook(request):
+        # Validate that this really came from Twitter before we start blocking people :)
+        abort(403)
+    body = request.json
+    if "tweet_create_events" in body:
+        # Tweets, retweets, replies, quote tweets, mentions
+        handle_events(body["tweet_create_events"])
+    return "", 204
