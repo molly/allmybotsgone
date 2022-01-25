@@ -55,7 +55,7 @@ def report(users):
     else:
         reported = 0
 
-    reported += len(user_ids)
+    reported += len(users)
     print("Total # reported:", reported)
 
     reported_file = open(REPORTED_FILE_PATH, "w+")
