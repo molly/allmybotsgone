@@ -17,6 +17,7 @@ WORDS = {
         "NFTs",
         "doge",
         "SHIB",
+        "BNB",
     ],
     "VERB": ["hacked", "stole", "took"],
     "CREDS": [
