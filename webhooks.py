@@ -42,23 +42,25 @@ def is_probably_spam(tweet):
     return False
 
 
-def report(user_ids):
+def report(users):
     """Send reports and record the number of users reported"""
-    for user_id in user_ids:
-        api.report_spam(user_id=user_id)
-        print("Reported ID:", user_id)
+    for user in users:
+        api.report_spam(user_id=user["id"])
+        print("Reported user:", user["screen_name"])
 
     if os.path.exists(REPORTED_FILE_PATH):
-        with open(REPORTED_FILE_PATH, "r") as reported_file:
-            reported = int(reported_file.read().strip())
+        reported_file = open(REPORTED_FILE_PATH, "r")
+        reported = int(reported_file.read().strip())
+        reported_file.close()
     else:
         reported = 0
 
     reported += len(user_ids)
     print("Total # reported:", reported)
 
-    with open(REPORTED_FILE_PATH, "w+") as reported_file:
-        reported_file.write(str(reported))
+    reported_file = open(REPORTED_FILE_PATH, "w+")
+    reported_file.write(str(reported))
+    reported_file.close()
 
 
 def handle_events(events):
@@ -73,7 +75,7 @@ def handle_events(events):
         ):
             # Reply to the bot, quote tweet of the bot
             if is_probably_spam(event):
-                to_report.append(event["user"]["id"])
+                to_report.append(event["user"])
     if len(to_report) > 0:
         report(to_report)
 
