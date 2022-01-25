@@ -2,15 +2,23 @@ import base64
 import hashlib
 import hmac
 import re
+import redis
 
 from auth import authenticate
 from constants import *
-from flask import Flask, abort, request, json, send_file
+from flask import Flask, abort, request, send_file
 from webhooks_data import EMAIL_PATTERN, SCAMMY_PATTERN
 
 
 api = authenticate()
 app = Flask(__name__)
+
+db = None
+has_db_connection = False
+
+if "REDIS_URL" in os.environ:
+    db = redis.from_url(os.environ["REDIS_URL"], decode_responses=True)
+    has_db_connection = True
 
 
 def is_valid_webhook(req):
@@ -48,19 +56,12 @@ def report(users):
         api.report_spam(user_id=user["id"])
         print("Reported user:", user["screen_name"])
 
-    if os.path.exists(REPORTED_FILE_PATH):
-        reported_file = open(REPORTED_FILE_PATH, "r")
-        reported = int(reported_file.read().strip())
-        reported_file.close()
-    else:
-        reported = 0
+    if has_db_connection:
+        reported = int(db.get("reported")) or 0
+        reported += len(users)
+        print("Total # reported:", reported)
 
-    reported += len(users)
-    print("Total # reported:", reported)
-
-    reported_file = open(REPORTED_FILE_PATH, "w+")
-    reported_file.write(str(reported))
-    reported_file.close()
+        db.set("reported", reported)
 
 
 def handle_events(events):
@@ -109,4 +110,8 @@ def handle_webhook():
 
 @app.route("/stats", methods=["GET"])
 def show_stats():
-    return send_file(REPORTED_FILE_PATH)
+    if has_db_connection:
+        reported = int(db.get("reported"))
+        return {"reported": reported}
+    else:
+        abort(404)

@@ -35,7 +35,5 @@ if __name__ == "__main__":
 
     # Send stats tweet if it's time
     if should_send_stats:
-        with open(REPORTED_FILE_PATH, "r") as reported_file:
-            reported = int(reported_file.read().strip())
-        stats_tweet = write_stats_tweet(reported)
+        stats_tweet = write_stats_tweet()
         send_tweet(stats_tweet)

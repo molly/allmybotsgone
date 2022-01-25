@@ -1,4 +1,5 @@
 import random
+import requests
 
 EMOJIS = "😀😃😄😁😅☺️😊🙂😉😌😏🥴🤠😈👋🤙🖕🦸💃💅‍🌻⭐️✨🌟💥🔥🌈☀️🤸🚀💣🧹🎉🎊❤️💕💞💖️"
 
@@ -9,5 +10,8 @@ def pick_emojis():
     return " ".join(selection)
 
 
-def write_stats_tweet(count):
+def write_stats_tweet():
+    resp = requests.get("https://allmybotsgone.herokuapp.com/stats")
+    resp_json = resp.json()
+    count = int(resp_json["reported"])
     return "So far I've reported {} spambots!\n{}".format(count, pick_emojis())
