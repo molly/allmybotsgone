@@ -4,10 +4,10 @@ WORDS = {
         "Coinbase",
         "MetaMask",
         "Trust Wallet",
-        "Yoroi",
         "OpenSea",
         "PancakeSwap",
-        "Safemoon",
+        "Huobi",
+        "Yoroi"
     ],
     "STOLEN_NOUN": [
         "bitcoin",
@@ -18,6 +18,7 @@ WORDS = {
         "doge",
         "SHIB",
         "BNB",
+        "Safemoon"
     ],
     "VERB": ["hacked", "stole", "took"],
     "CREDS": [
@@ -49,4 +50,5 @@ TEMPLATES = [
     "someone {VERB} all my {STOLEN_NOUN}",
     "i lost my {CREDS} to my {PLATFORM} account",
     "i'm locked out of my {PLATFORM} account",
+    "i can't withdraw from my {PLATFORM} account"
 ]
