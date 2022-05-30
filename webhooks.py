@@ -70,13 +70,17 @@ def handle_events(events):
     for event in events:
         if event["user"]["id"] in ALLOWLISTED_USER_IDS:
             # Avoid reporting the bot itself, Molly, etc.
+            print("Allowlisted user")
             continue
         if event["in_reply_to_user_id"] == BOT_ID or (
             event["is_quote_status"] and event["quoted_status"]["user"]["id"] == BOT_ID
         ):
             # Reply to the bot, quote tweet of the bot
             if is_probably_spam(event):
+                print("Found probably spam tweet")
                 to_report.append(event["user"])
+            else:
+                print("Not spam")
     if len(to_report) > 0:
         report(to_report)
 
@@ -84,6 +88,7 @@ def handle_events(events):
 @app.route("/", methods=["GET"])
 def webhook_challenge():
     if request.args and request.args.get("crc_token"):
+        print("Handling webhook challenge")
         sha256_hash_digest = hmac.new(
             bytes(os.environ.get("API_KEY_SECRET"), "utf-8"),
             msg=bytes(request.args.get("crc_token"), "utf-8"),
@@ -101,6 +106,7 @@ def webhook_challenge():
 @app.route("/", methods=["POST"])
 def handle_webhook():
     if not is_valid_webhook(request):
+        print("invalid webhook")
         abort(403)
     body = request.json
     if "tweet_create_events" in body:
